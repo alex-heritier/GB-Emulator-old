@@ -50,9 +50,10 @@ public class GBCPU {
             PC++;
             processInstruction(instruction);
             if (PC > 0xFFFF) {
+                System.out.println(coreDump());
                 System.out.println("Instructions executed: " + instructionCount);
                 System.out.println("Errors produced: " + errorCount);
-                System.out.printf("%d instructions were recognized\n", instructionCount - errorCount);
+                System.out.printf("%d instructions recognized\n", instructionCount - errorCount);
                 System.out.printf("%.2f%% failure rate\n", (double) errorCount / (double) instructionCount * 100);
                 System.exit(0);
             }
@@ -61,8 +62,7 @@ public class GBCPU {
     }
 
     private void processInstruction(short instruction) {
-        int address;
-        int address2;
+        int word;
         instructionCount++;
         switch (instruction) {
             //8 Bit Transfer Instructions
@@ -98,16 +98,16 @@ public class GBCPU {
                 A = L;
                 break;
             case 0x7E:  //LD A, (HL);
-                address = makeWord(H, L);
-                A = MMU.readAddress(address);
+                word = makeWord(H, L);
+                A = MMU.readAddress(word);
                 break;
             case 0x0A:  //LD A, (BC)
-                address = makeWord(B, C);
-                A = MMU.readAddress(address);
+                word = makeWord(B, C);
+                A = MMU.readAddress(word);
                 break;
             case 0x1A:  //LD A, (DE)
-                address = makeWord(D, E);
-                A = MMU.readAddress(address);
+                word = makeWord(D, E);
+                A = MMU.readAddress(word);
                 break;
 //LDA		word		LD		A,(word)    3Aword		A <- (word)
 //MOV		B,A		LD		B,A		47		B <- A
@@ -118,17 +118,35 @@ public class GBCPU {
 //MOV		B,H		LD		B,H		44		B <- H
 //MOV		B,L		LD		B,L		45		B <- L
 //MOV		B,M		LD		B,(HL)		46		B <- (HL)
-            case 0x3A:  //LD A, (word)
-                //LDD		EDA8		(DE) <- (HL);HL <- HL-1; DE <- DE-1; BC <- BC-1
-                address = makeWord(D, E);
-                MMU.writeAddress(address, MMU.readAddress(makeWord(H, L))); //(DE) <- (HL)
-                //using Math.abs below may be incorrect behavior
-                L = (short) Math.abs(L - 1);    //HL <- HL-1
-                E = (short) Math.abs(E - 1);    //DE <- DE-1
-                C = (short) Math.abs(C - 1);    //BC <- BC-1
+            case 0x3A:  //LDD A, (HL)
+                word = H << 8;
+                word += L;
+                MMU.writeAddress(A, MMU.readAddress(word));
+                L = (short) (L == 0 ? 0 : L - 1);
                 break;
             case 0x47:  //LD B, A
                 B = A;
+                break;
+            case 0x40:  //LD B, B
+                break;
+            case 0x41:  //LD B, C
+                B = C;
+                break;
+            case 0x42:  //LD B, D
+                B = D;
+                break;
+            case 0x43:  //LD B, E
+                B = E;
+                break;
+            case 0x44:  //LD B, H
+                B = H;
+                break;
+            case 0x45:  //LD B, L
+                B = L;
+                break;
+            case 0x46:  //LD B, (HL)
+                word = makeWord(H, L);
+                B = MMU.readAddress(word);
                 break;
 //MOV		C,A		LD		C,A		4F		C <- A
 //MOV		C,B		LD		C,B		48		C <- B
@@ -138,6 +156,30 @@ public class GBCPU {
 //MOV		C,H		LD		C,H		4C		C <- H
 //MOV		C,L		LD		C,L		4D		C <- L
 //MOV		C,M		LD		C,(HL)		4E		C <- (HL)
+            case 0x4F:  //LD C, A
+                C = A;
+                break;
+            case 0x48:  //LD C, B
+                C = B;
+                break;
+            case 0x49:  //LD C, C
+                break;
+            case 0x4A:  //LD C, D
+                C = D;
+                break;
+            case 0x4B:  //LD C, E
+                C = E;
+                break;
+            case 0x4C:  //LD C, H
+                C = H;
+                break;
+            case 0x4D:  //LD C, L
+                C = L;
+                break;
+            case 0x4E:  //LD C, (HL)
+                word = makeWord(H, L);
+                C = MMU.readAddress(word);
+                break;
 //MOV		D,A		LD		D,A		57		D <- A
 //MOV		D,B		LD		D,B		50		D <- B
 //MOV		D,C		LD		D,C		51		D <- C
@@ -146,6 +188,30 @@ public class GBCPU {
 //MOV		D,H		LD		D,H		54		D <- H
 //MOV		D,L		LD		D,L		55		D <- L
 //MOV		D,M		LD		D,(HL)		56		D <- (HL)
+            case 0x57:  //LD D, A
+                D = A;
+                break;
+            case 0x50:  //LD D, B
+                D = B;
+                break;
+            case 0x51:  //LD D, C
+                D = C;
+                break;
+            case 0x52:  //LD D, D
+                break;
+            case 0x53:  //LD D, E
+                D = E;
+                break;
+            case 0x54:  //LD D, H
+                D = H;
+                break;
+            case 0x55:  //LD D, L
+                D = L;
+                break;
+            case 0x56:  //LD D, (HL)
+                word = makeWord(H, L);
+                D = MMU.readAddress(word);
+                break;
 //MOV		E,A		LD		E,A		5F		E <- A
 //MOV		E,B		LD		E,B		58		E <- B
 //MOV		E,C		LD		E,C		59		E <- C
@@ -154,6 +220,30 @@ public class GBCPU {
 //MOV		E,H		LD		E,H		5C		E <- H
 //MOV		E,L		LD		E,L		5D		E <- L
 //MOV		E,M		LD		E,(HL)		5E		E <- (HL)
+            case 0x5F:  //LD E, A
+                E = A;
+                break;
+            case 0x58:  //LD E, B
+                E = B;
+                break;
+            case 0x59:  //LD E, C
+                E = C;
+                break;
+            case 0x5A:  //LD E, D
+                E = D;
+                break;
+            case 0x5B:  //LD E, E
+                break;
+            case 0x5C:  //LD E, H
+                E = H;
+                break;
+            case 0x5D:  //LD E, L
+                E = L;
+                break;
+            case 0x5E:  //LD E, (HL)
+                word = makeWord(H, L);
+                E = MMU.readAddress(word);
+                break;
 //MOV		H,A		LD		H,A		67		H <- A
 //MOV		H,B		LD		H,B		60		H <- B
 //MOV		H,C		LD		H,C		61		H <- C
@@ -162,6 +252,30 @@ public class GBCPU {
 //MOV		H,H		LD		H,H		64		H <- H
 //MOV		H,L		LD		H,L		65		H <- L
 //MOV		H,M		LD		H,(HL)		66		H <- (HL)
+            case 0x67:  //LD H, A
+                H = A;
+                break;
+            case 0x60:  //LD H, B
+                H = B;
+                break;
+            case 0x61:  //LD H, C
+                H = C;
+                break;
+            case 0x62:  //LD H, D
+                H = D;
+                break;
+            case 0x63:  //LD H, E
+                H = E;
+                break;
+            case 0x64:  //LD H, H
+                break;
+            case 0x65:  //LD H, L
+                H = L;
+                break;
+            case 0x66:  //LD H, (HL)
+                word = makeWord(H, L);
+                H = MMU.readAddress(word);
+                break;
 //MOV		L,A		LD		L,A		6F		L <- A
 //MOV		L,B		LD		L,B		68		L <- B
 //MOV		L,C		LD		L,C		69		L <- C
@@ -170,6 +284,30 @@ public class GBCPU {
 //MOV		L,H		LD		L,H		6C		L <- H
 //MOV		L,L		LD		L,L		6D		L <- L
 //MOV		L,M		LD		L,(HL)		6E		L <- (HL)
+            case 0x6F:  //LD L, A
+                L = A;
+                break;
+            case 0x68:  //LD L, B
+                L = B;
+                break;
+            case 0x69:  //LD L, C
+                L = C;
+                break;
+            case 0x6A:  //LD L, D
+                L = D;
+                break;
+            case 0x6B:  //LD L, E
+                L = E;
+                break;
+            case 0x6C:  //LD L, H
+                L = H;
+                break;
+            case 0x6D:  //LD L, L
+                break;
+            case 0x6E:  //LD L, (HL)
+                word = makeWord(H, L);
+                L = MMU.readAddress(word);
+                break;
 //MOV		M,A		LD		(HL),A		77		(HL) <- A
 //MOV		M,B		LD		(HL),B		70		(HL) <- B
 //MOV		M,C		LD		(HL),C		71		(HL) <- C
@@ -177,6 +315,33 @@ public class GBCPU {
 //MOV		M,E		LD		(HL),E		73		(HL) <- E
 //MOV		M,H		LD		(HL),H		74		(HL) <- H
 //MOV		M,L		LD		(HL),L		75		(HL) <- L
+            case 0x77:  //LD (HL), A
+                word = makeWord(H, L);
+                MMU.writeAddress(word, A);
+                break;
+            case 0x70:  //LD (HL), B
+                word = makeWord(H, L);
+                MMU.writeAddress(word, B);
+            case 0x71:  //LD (HL), C
+                word = makeWord(H, L);
+                MMU.writeAddress(word, C);
+                break;
+            case 0x72:  //LD (HL), D
+                word = makeWord(H, L);
+                MMU.writeAddress(word, D);
+                break;
+            case 0x73:  //LD (HL), E
+                word = makeWord(H, L);
+                MMU.writeAddress(word, E);
+                break;
+            case 0x74:  //LD (HL), H
+                word = makeWord(H, L);
+                MMU.writeAddress(word, H);
+                break;
+            case 0x75:  //LD (HL), L
+                word = makeWord(H, L);
+                MMU.writeAddress(word, L);
+                break;
 //MVI		A,byte		LD		A,byte		3Ebyte		A <- byte
 //MVI		B,byte		LD		B,byte		06byte		B <- byte
 //MVI		C,byte		LD		C,byte		0Ebyte		C <- byte
@@ -184,10 +349,56 @@ public class GBCPU {
 //MVI		E,byte		LD		E,byte		1Ebyte		E <- byte
 //MVI		H,byte		LD		H,byte		26byte		H <- byte
 //MVI		L,byte		LD		L,byte		2Ebyte		L <- byte
+            case 0x3E:  //LD A, byte
+                A = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x06:  //LD B, byte
+                B = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x0E:  //LD C, byte
+                C = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x16:  //LD D, byte
+                D = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x1E:  //LD E, byte
+                E = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x26:  //LD H, byte
+                H = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x2E:  //LD L, byte
+                L = MMU.readAddress(PC);
+                PC++;
+                break;
 //MVI		M,byte		LD		(HL),byte		36byte		(HL) <- byte
 //STAX		B		LD		(BC),A		02		(BC) <- A
 //STAX		D		LD		(DE),A		12		(DE) <- A
 //STA		word		LD		(word),A		32word		(word) <- A
+            case 0x36:  //LD (HL), byte
+                word = makeWord(H, L);
+                MMU.writeAddress(word, MMU.readAddress(PC));
+                PC++;
+                break;
+            case 0x02:  //LD (BC), A
+                word = makeWord(B, C);
+                MMU.writeAddress(word, A);
+                break;
+            case 0x12:  //LD (DE), A
+                word = makeWord(D, E);
+                MMU.writeAddress(word, A);
+                break;
+            case 0x32:  //LD (word), A
+                word = makeWord(MMU.readAddress(PC), MMU.readAddress(PC + 1));
+                PC += 2;
+                MMU.writeAddress(word, A);
+                break;
 //16 Bit Transfer Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //LXI		B,word		LD		BC,word		01word		BC <- word
@@ -197,11 +408,54 @@ public class GBCPU {
 //LHLD		word		LD		HL,(word)		2Aword		HL <- (word)
 //SHLD		word		LD		(word),HL		22word		(word) <- HL
 //SPHL		LD		SP,HL		F9		SP <- HL
+            case 0x01:  //LD BC, word
+                B = MMU.readAddress(PC);
+                PC++;
+                C = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x11:  //LD DE, word
+                D = MMU.readAddress(PC);
+                PC++;
+                E = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x21:  //LD HL, word
+                H = MMU.readAddress(PC);
+                PC++;
+                L = MMU.readAddress(PC);
+                PC++;
+                break;
+            case 0x31:  //LD SP, word
+                SP = makeWord(MMU.readAddress(PC), MMU.readAddress(PC + 1));
+                PC += 2;
+                break;
+            case 0x2A:  //LDI A, (HL)
+                word = makeWord(H, L);
+                A = MMU.readAddress(word);
+                L++;
+                break;
+            case 0x22:  //LDI (HL), A
+                word = makeWord(H, L);
+                MMU.writeAddress(word, A);
+                L++;
+                break;
+            case 0xF9:  //LD SP, HL
+                word = makeWord(H, L);
+                SP = word;
+                break;
 //Register Exchange Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
-//XTHL		EX		(SP),HL		E3		H <-> (SP+1); L <-> (SP)
 //---		EX		AF,AF'		08		AF <-> AF'
 //---		EXX		D9		BC/DE/HL <-> BC'/DE'/HL'
+            case 0x08:  //LD (word), SP
+                word = MMU.readAddress(PC);
+                PC++;
+                MMU.writeAddress(word, (short) (SP >> 8));    //write high byte
+                word = MMU.readAddress(PC);
+                PC++;
+                MMU.writeAddress(word, (short) (SP & 0x00FF));    //write low byte
+                break;
 //Add Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //ADD		A		ADD		A,A		87		A <- A + A
@@ -213,6 +467,81 @@ public class GBCPU {
 //ADD		L		ADD		A,L		85		A <- A + L
 //ADD		M		ADD		A,(HL)		86		A <- A + (HL)
 //ADI		byte		ADD		A,byte		C6byte		A <- A + byte
+            case 0x87:  //ADD A, A
+                halfCarry = A < 0x10 && A * 2 >= 0x10;  //if A less than 4 bits and A + A more than 3 bits
+                carry = A * 2 > 0xFF;   //if A + A more than a byte
+                A += A;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x80:  //ADD A, B
+                halfCarry = A < 0x10 && A + B >= 0x10;
+                carry = A + B > 0xFF;
+                A += B;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x81:  //ADD A, C
+                halfCarry = A < 0x10 && A + C >= 0x10;
+                carry = A + C > 0xFF;
+                A += C;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x82:  //ADD A, D
+                halfCarry = A < 0x10 && A + D >= 0x10;
+                carry = A + D > 0xFF;
+                A += D;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x83:  //ADD A, E
+                halfCarry = A < 0x10 && A + E >= 0x10;
+                carry = A + E > 0xFF;
+                A += E;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x84:  //ADD A, H
+                halfCarry = A < 0x10 && A + H >= 0x10;
+                carry = A + H > 0xFF;
+                A += H;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x85:  //ADD A, L
+                halfCarry = A < 0x10 && A + L >= 0x10;
+                carry = A + L > 0xFF;
+                A += L;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x86:  //ADD A, (HL)
+                word = MMU.readAddress(makeWord(H, L));
+                halfCarry = A < 0x10 && A + word >= 0x10;
+                carry = A + word > 0xFF;
+                A += word;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0xC6:  //ADD A, byte
+                word = MMU.readAddress(PC);
+                PC++;
+                halfCarry = A < 0x10 && A + word >= 0x10;
+                carry = A + word > 0xFF;
+                A += word;
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
 //Add Byte with Carry-In Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //ADC		A		ADC		A,A		8F		A <- A + A + Carry
@@ -224,6 +553,80 @@ public class GBCPU {
 //ADC		L		ADC		A,L		8D		A <- A + L + Carry
 //ADC		M		ADC		A,(HL)		8E		A <- A + (HL) + Carry
 //ACI		byte		ADC		A,byte		CEbyte		A <- A + byte + Carry
+            case 0x8F:  //ADC A, A
+                halfCarry = A < 0x10 && A + A + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + A + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += A + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x88:  //ADC A, B
+                halfCarry = A < 0x10 && A + B + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + B + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += B + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x89:  //ADC A, C
+                halfCarry = A < 0x10 && A + C + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + C + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += C + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x8A:  //ADC A, D
+                halfCarry = A < 0x10 && A + D + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + D + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += D + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x8B:  //ADC A, E
+                halfCarry = A < 0x10 && A + E + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + E + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += E + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                subtract = false;
+                break;
+            case 0x8C:  //ADC A, H
+                halfCarry = A < 0x10 && A + H + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + H + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += H + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x8D:  //ADC A, L
+                halfCarry = A < 0x10 && A + L + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + L + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += L + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0x8E:  //ADC A, (HL)
+                word = MMU.readAddress(makeWord(H, L));
+                halfCarry = A < 0x10 && A + word + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + word + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += word + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
+            case 0xCE:  //ADC A, byte
+                word = MMU.readAddress(PC);
+                PC++;
+                halfCarry = A < 0x10 && A + word + (halfCarry == true ? 1 : 0) >= 0x10;
+                carry = A + word + (halfCarry == true ? 1 : 0) > 0xFF;
+                A += word + (halfCarry == true ? 1 : 0);
+                A %= 0x100;
+                zero = (A == 0 ? true : false);
+                subtract = false;
+                break;
 //Subtract Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //SUB		A		SUB		A		97		A <- A - A
@@ -235,6 +638,21 @@ public class GBCPU {
 //SUB		L		SUB		L		95		A <- A - L
 //SUB		M		SUB		(HL)		96		A <- A - (HL)
 //SUI		byte		SUB		byte		D6byte		A <- A - byte
+            case 0x97:  //SUB A
+                halfCarry = A > 0x0F ? true : false;
+                A = 0;
+                subtract = true;
+                zero = true;
+                carry = false;
+                break;
+            case 0x90:  //SUB B
+                halfCarry = A > 0x0F && A - B <= 0x0F ? true : false;
+                carry = A < B ? true : false;
+                zero = A == B ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - B)) % 0x100);
+                break;
+
 //Subtract Byte With Borrow-In Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //SBB		A		SBC		A		9F		A <- A - A - Carry
@@ -376,15 +794,15 @@ public class GBCPU {
 //CPI		byte		CP		byte		FEbyte		A - byte
 //Branch Control/Program Counter Load Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
-//JMP		address		JP		address		C3address		PC <- address
-//JNZ		address		JP		NZ,address		C2address 	If NZ, PC <- address
-//JZ		address		JP		Z,address		CAaddress		If Z, PC <- address
-//JNC		address		JP		NC,address		D2address		If NC, PC <- address
-//JC		address		JP		C,address		DAaddress		If C, PC <- address
-//JPO		address		JP		PO,address		E2address		If PO, PC <- address
-//JPE		address		JP		PE,address		EAaddress		If PE, PC <- address
-//JP		address		JP		P,address		F2address		If P, PC <- address
-//JM		address		JP		M,address		FAaddress		If M, PC <- address
+//JMP		word		JP		word		C3address		PC <- word
+//JNZ		word		JP		NZ,word		C2address 	If NZ, PC <- word
+//JZ		word		JP		Z,word		CAaddress		If Z, PC <- word
+//JNC		word		JP		NC,word		D2address		If NC, PC <- word
+//JC		word		JP		C,word		DAaddress		If C, PC <- word
+//JPO		word		JP		PO,word		E2address		If PO, PC <- word
+//JPE		word		JP		PE,word		EAaddress		If PE, PC <- word
+//JP		word		JP		P,word		F2address		If P, PC <- word
+//JM		word		JP		M,word		FAaddress		If M, PC <- word
 //PCHL		JP		(HL)		E9		PC <- HL
 //---		JP		(IX)		DDE9		PC <- IX
 //---		JP		(IY)		FDE9		PC <- IY
@@ -394,13 +812,13 @@ public class GBCPU {
 //---		JR		NC,index		30index		If NC, PC <- PC + index
 //---		JR		C,index		38index		If C, PC <- PC + index
 //---		DJNZ		index		10index		B <- B - 1; while B > 0, PC <- PC + index
-//CALL		address		CALL		address		CDaddress	(SP-1) <- PCh;(SP-2) <- PCl; SP <- SP - 2;PC <- address
-//CNZ		address		CALL		NZ,address		C4address		If NZ, CALL address
-//CZ		address		CALL		Z,address		CCaddress		If Z, CALL address
-//CNC		address		CALL		NC,address		D4address		If NC, CALL address
-//CC		address		CALL		C,address		DCaddress		If C, CALL address
-//CPO		address		CALL		PO,address		E4address		If PO, CALL address
-//CP		address		CALL		P,address		F4address		If P, CALL address
+//CALL		word		CALL		word		CDaddress	(SP-1) <- PCh;(SP-2) <- PCl; SP <- SP - 2;PC <- word
+//CNZ		word		CALL		NZ,word		C4address		If NZ, CALL word
+//CZ		word		CALL		Z,word		CCaddress		If Z, CALL word
+//CNC		word		CALL		NC,word		D4address		If NC, CALL word
+//CC		word		CALL		C,word		DCaddress		If C, CALL word
+//CPO		word		CALL		PO,word		E4address		If PO, CALL word
+//CP		word		CALL		P,word		F4address		If P, CALL word
 //RET		RET		C9		PCl <- (SP);PCh <- (SP+1); SP <- (SP+2)
 //RNZ		RET		NZ		C0		If NZ, RET
 //RZ		RET		Z		C8		If Z, RET
@@ -682,19 +1100,29 @@ public class GBCPU {
         core += "\nL: \t0x" + String.format("%02X", L);
         short flags = 0x00;
         if (zero) {
-            flags += 0x01 << 7;
+            flags |= 0x01 << 7;
         }
         if (subtract) {
-            flags += 0x01 << 6;
+            flags |= 0x01 << 6;
         }
         if (halfCarry) {
-            flags += 0x01 << 5;
+            flags |= 0x01 << 5;
         }
         if (carry) {
-            flags += 0x01 << 4;
+            flags |= 0x01 << 4;
         }
-        core += "\nF: \t" + String.format("%08Xb", flags);
+        core += "\nF: \t0b" + byteToBinaryString(flags);
         return core;
+    }
+
+    private String byteToBinaryString(short data) {
+        String bin = "";
+        bin += (data & 0x80) >> 7;
+        bin += (data & 0x40) >> 6;
+        bin += (data & 0x20) >> 5;
+        bin += (data & 0x10) >> 4;
+        bin += "0000";
+        return bin;
     }
 
     private void INTBadInstruction() {
