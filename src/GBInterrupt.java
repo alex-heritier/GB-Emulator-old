@@ -7,32 +7,19 @@
  *
  * @author Alex
  */
-public class GBInterrupt {
-    public enum Interrupt {
-        INT_NONE,
-        INT_EXIT,
-        INT_SEGFAULT,
-        INT_BADINSTRUCTION
-    }
-    public final Interrupt type;
+public abstract class GBInterrupt {
     public final String info;
-    
-    public static final GBInterrupt INT_NONE = new GBInterrupt(Interrupt.INT_NONE, "No interrupt");
-    public static final GBInterrupt INT_EXIT = new GBInterrupt(Interrupt.INT_EXIT, "CPU has been told to shutdown");
-    public static final GBInterrupt INT_SEGFAULT = new GBInterrupt(Interrupt.INT_SEGFAULT, "Invalid memory accessed");
-    public static final GBInterrupt INT_BADINSTRUCTION = new GBInterrupt(Interrupt.INT_BADINSTRUCTION, "Invalid instruction");
-    
-    public GBInterrupt(Interrupt type, String info) {
-        this.type = type;
+    public static final GBNoInterrupt INT_NONE = new GBNoInterrupt("INT_NONE");
+    public static final GBBadInstruction INT_BADINSTRUCTION = new GBBadInstruction("INT_BADINSTRUCTION");
+    public static final GBExit INT_EXIT = new GBExit("INT_EXIT");
+
+    public GBInterrupt(String info) {
         this.info = info;
     }
-    
-    public GBInterrupt(GBInterrupt interrupt, String info) {
-        this.type = interrupt.type;
-        this.info = info;
-    }
-    
+
     public boolean equals(GBInterrupt interrupt) {
-        return type == interrupt.type;
+        return this.getClass().getName().equals(interrupt.getClass().getName());
     }
+
+    abstract void trigger();
 }

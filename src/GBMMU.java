@@ -75,12 +75,12 @@ public class GBMMU {
         } else if (address < SAT_START && address < 0xDDFF) {
             return workRAMBank0[address - WORKBANKRAM0GHOST_START];
         } else if (address < SAT_START && address >= 0xDDFF) {
-            GBDebug.log("GBMMU.readAddress - Attempted to read non-mirrored memory at " + Integer.toHexString(address));
+            GBDebug.log("GBMMU.readAddress - Attempted to read non-mirrored memory at 0x" + Integer.toHexString(address).toUpperCase());
             return 0x00;
         } else if (address < NOTUSABLE_START) {
             return SAT[address - SAT_START];
         } else if (address < IOPORTS_START) {
-            GBDebug.log("GBMMU.readAddress - Attempted to read unusable memory at " + Integer.toHexString(address));
+            GBDebug.log("GBMMU.readAddress - Attempted to read unusable memory at 0x" + Integer.toHexString(address).toUpperCase());
             return 0x00;
         } else if (address < HIGHRAM_START) {
             return IOPorts[address - IOPORTS_START];
@@ -89,7 +89,7 @@ public class GBMMU {
         } else if (address == IER_START) {
             return IER;
         } else {
-            GBDebug.log("GBMMU.readAddress - Attempted to read out-of-bounds memory at " + Integer.toHexString(address));
+            GBDebug.log("GBMMU.readAddress - Attempted to read out-of-bounds memory at 0x" + Integer.toHexString(address).toUpperCase());
             return 0;
         }
     }
@@ -110,11 +110,11 @@ public class GBMMU {
         } else if (address < SAT_START && address < 0xDDFF) {
             workRAMBank0[address - WORKBANKRAM0GHOST_START] = value;
         } else if (address < SAT_START && address >= 0xDDFF) {
-            GBDebug.log("GBMMU.writeAddress - Attempted to write non-mirrored memory at " + Integer.toHexString(address));
+            GBDebug.log("GBMMU.writeAddress - Attempted to write non-mirrored memory at 0x" + Integer.toHexString(address).toUpperCase());
         } else if (address < NOTUSABLE_START) {
             SAT[address - SAT_START] = value;
         } else if (address < IOPORTS_START) {
-            GBDebug.log("GBMMU.writeAddress - Attempted to write unusable memory at " + Integer.toHexString(address));
+            GBDebug.log("GBMMU.writeAddress - Attempted to write unusable memory at 0x" + Integer.toHexString(address).toUpperCase());
         } else if (address < HIGHRAM_START) {
             IOPorts[address - IOPORTS_START] = value;
         } else if (address < IER_START) {
@@ -122,7 +122,7 @@ public class GBMMU {
         } else if (address == IER_START) {
             IER = value;
         } else {
-            GBDebug.log("GBMMU.writeAddress - Attempted to write out-of-bounds memory at " + Integer.toHexString(address));
+            GBDebug.log("GBMMU.writeAddress - Attempted to write out-of-bounds memory at 0x" + Integer.toHexString(address).toUpperCase());
         }
     }
 }

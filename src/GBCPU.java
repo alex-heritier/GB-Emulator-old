@@ -1,5 +1,4 @@
 
-import javax.swing.JDialog;
 
 
 /*
@@ -41,9 +40,9 @@ public class GBCPU {
     public void run(String gameName) {
         cart = new GBCartridge(gameName);
         loadROM();
-        while (interrupt != GBInterrupt.INT_EXIT) {
-            if (interrupt != GBInterrupt.INT_NONE) {
-                processInterrupt(interrupt);
+        while (!interrupt.equals(GBInterrupt.INT_EXIT)) {
+            if (!interrupt.equals(GBInterrupt.INT_NONE)) {
+                interrupt.trigger();
                 interrupt = GBInterrupt.INT_NONE;
             }
             short instruction = MMU.readAddress(PC);
@@ -627,6 +626,7 @@ public class GBCPU {
                 zero = (A == 0 ? true : false);
                 subtract = false;
                 break;
+
 //Subtract Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //SUB		A		SUB		A		97		A <- A - A
@@ -652,7 +652,58 @@ public class GBCPU {
                 subtract = true;
                 A = (short) ((0x100 + (A - B)) % 0x100);
                 break;
-
+            case 0x91:  //SUB C
+                halfCarry = A > 0x0F && A - C <= 0x0F ? true : false;
+                carry = A < C ? true : false;
+                zero = A == C ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - C)) % 0x100);
+                break;
+            case 0x92:  //SUB D
+                halfCarry = A > 0x0F && A - D <= 0x0F ? true : false;
+                carry = A < D ? true : false;
+                zero = A == D ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - D)) % 0x100);
+                break;
+            case 0x93:  //SUB E
+                halfCarry = A > 0x0F && A - E <= 0x0F ? true : false;
+                carry = A < E ? true : false;
+                zero = A == E ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - E)) % 0x100);
+                break;
+            case 0x94:  //SUB H
+                halfCarry = A > 0x0F && A - H <= 0x0F ? true : false;
+                carry = A < H ? true : false;
+                zero = A == H ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - H)) % 0x100);
+                break;
+            case 0x95:  //SUB L
+                halfCarry = A > 0x0F && A - L <= 0x0F ? true : false;
+                carry = A < L ? true : false;
+                zero = A == L ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - L)) % 0x100);
+                break;
+            case 0x96:  //SUB (HL)
+                word = MMU.readAddress(makeWord(H, L));
+                halfCarry = A > 0x0F && A - word <= 0x0F ? true : false;
+                carry = A < word ? true : false;
+                zero = A == word ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - word)) % 0x100);
+                break;
+            case 0xD6:  //SUB byte
+                word = MMU.readAddress(PC);
+                PC++;
+                halfCarry = A > 0x0F && A - word <= 0x0F ? true : false;
+                carry = A < word ? true : false;
+                zero = A == word ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - word)) % 0x100);
+                break;
 //Subtract Byte With Borrow-In Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //SBB		A		SBC		A		9F		A <- A - A - Carry
@@ -664,6 +715,13 @@ public class GBCPU {
 //SBB		L		SBC		L		9D		A <- A - L - Carry
 //SBB		M		SBC		(HL)		9E		A <- A - (HL) - Carry
 //SBI		byte		SBC		byte		DEbyte		A <- A - byte - Carry
+            case 0x9F:  //SBC A
+                halfCarry = A > 0x0F && A - B - (halfCarry == true ? 1 : 0) <= 0x0F ? true : false;
+                carry = A < B + (halfCarry == true ? 1 : 0) ? true : false;
+                zero = A == B + (halfCarry == true ? 1 : 0) ? true : false;
+                subtract = true;
+                A = (short) ((0x100 + (A - B - (halfCarry == true ? 1 : 0))) % 0x100);
+                break;
 //Double Byte Add Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //DAD		B		ADD		HL,BC		09		HL <- HL + BC
@@ -1069,8 +1127,9 @@ public class GBCPU {
 //---		SRL		L		CB3D		---	
 //---		SRL		(HL)		CB3E		---	
             default:
-                interrupt = new GBInterrupt(GBInterrupt.INT_BADINSTRUCTION,
-                        String.format("0x%02X", instruction) + " at address 0x" + String.format("%04X", PC - 1));
+                errorCount++;
+                interrupt = new GBBadInstruction(String.format("0x%02X", instruction)
+                        + " at address 0x" + String.format("%04X", PC - 1));
         }
     }
 
@@ -1080,12 +1139,12 @@ public class GBCPU {
         return word;
     }
 
-    private void processInterrupt(GBInterrupt inter) {
-        switch (inter.type) {
-            case INT_BADINSTRUCTION:
-                INTBadInstruction();
-                break;
-        }
+    private void sbc(short registerValue) {
+        halfCarry = A > 0x0F && A - registerValue - (halfCarry == true ? 1 : 0) <= 0x0F ? true : false;
+        carry = A < registerValue + (halfCarry == true ? 1 : 0) ? true : false;
+        zero = A == registerValue + (halfCarry == true ? 1 : 0) ? true : false;
+        subtract = true;
+        A = (short) ((0x100 + (A - registerValue - (halfCarry == true ? 1 : 0))) % 0x100);
     }
 
     private String coreDump() {
@@ -1123,10 +1182,5 @@ public class GBCPU {
         bin += (data & 0x10) >> 4;
         bin += "0000";
         return bin;
-    }
-
-    private void INTBadInstruction() {
-        errorCount++;
-        GBDebug.log("GBCPU.INTBadInstruction - Invalid instruction " + interrupt.info);
     }
 }
