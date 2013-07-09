@@ -15,6 +15,5 @@ public class GBNoInterrupt extends GBInterrupt {
 
     @Override
     void trigger() {
-        GBDebug.log("Triggering GBNoInterrupt with info: " + info);
     }
 }

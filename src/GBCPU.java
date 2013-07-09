@@ -1,6 +1,4 @@
 
-
-
 /*
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
@@ -17,6 +15,7 @@ public class GBCPU {
     private short A, B, C, D, E, H, L;
     private boolean zero, subtract, halfCarry, carry;
     private boolean IER;
+    private boolean DAA;
     private GBInterrupt interrupt;
     private long instructionCount, errorCount;
 
@@ -26,6 +25,8 @@ public class GBCPU {
         PC = 0x100; //hard-coded entry point in cartidge
         SP = A = B = C = D = E = H = L = 0;
         zero = subtract = halfCarry = carry = false;
+        IER = true;
+        DAA = false;
         interrupt = GBInterrupt.INT_NONE;
         instructionCount = errorCount = 0;
     }
@@ -40,15 +41,16 @@ public class GBCPU {
     public void run(String gameName) {
         cart = new GBCartridge(gameName);
         loadROM();
-        while (!interrupt.equals(GBInterrupt.INT_EXIT)) {
-            if (!interrupt.equals(GBInterrupt.INT_NONE)) {
+        while (true) {
+            if (IER) {
                 interrupt.trigger();
-                interrupt = GBInterrupt.INT_NONE;
             }
+            interrupt = GBInterrupt.INT_NONE;
             short instruction = MMU.readAddress(PC);
             PC++;
             processInstruction(instruction);
             if (PC > 0xFFFF) {
+                interrupt.trigger();
                 System.out.println(coreDump());
                 System.out.println("Instructions executed: " + instructionCount);
                 System.out.println("Errors produced: " + errorCount);
@@ -57,11 +59,13 @@ public class GBCPU {
                 System.exit(0);
             }
         }
-        System.exit(0);
     }
 
     private void processInstruction(short instruction) {
         int word;
+        short byte1;
+        short byte2;
+        boolean bool;
         instructionCount++;
         switch (instruction) {
             //8 Bit Transfer Instructions
@@ -120,7 +124,8 @@ public class GBCPU {
             case 0x3A:  //LDD A, (HL)
                 word = H << 8;
                 word += L;
-                MMU.writeAddress(A, MMU.readAddress(word));
+                byte1 = MMU.readAddress(word);
+                MMU.writeAddress(A, byte1);
                 L = (short) (L == 0 ? 0 : L - 1);
                 break;
             case 0x47:  //LD B, A
@@ -382,7 +387,8 @@ public class GBCPU {
 //STA		word		LD		(word),A		32word		(word) <- A
             case 0x36:  //LD (HL), byte
                 word = makeWord(H, L);
-                MMU.writeAddress(word, MMU.readAddress(PC));
+                byte1 = MMU.readAddress(PC);
+                MMU.writeAddress(word, byte1);
                 PC++;
                 break;
             case 0x02:  //LD (BC), A
@@ -394,7 +400,9 @@ public class GBCPU {
                 MMU.writeAddress(word, A);
                 break;
             case 0x32:  //LD (word), A
-                word = makeWord(MMU.readAddress(PC), MMU.readAddress(PC + 1));
+                byte1 = MMU.readAddress(PC);
+                byte2 = MMU.readAddress(PC + 1);
+                word = makeWord(byte1, byte2);
                 PC += 2;
                 MMU.writeAddress(word, A);
                 break;
@@ -426,7 +434,9 @@ public class GBCPU {
                 PC++;
                 break;
             case 0x31:  //LD SP, word
-                SP = makeWord(MMU.readAddress(PC), MMU.readAddress(PC + 1));
+                byte1 = MMU.readAddress(PC);
+                byte2 = MMU.readAddress(PC + 1);
+                SP = makeWord(byte1, byte2);
                 PC += 2;
                 break;
             case 0x2A:  //LDI A, (HL)
@@ -467,79 +477,40 @@ public class GBCPU {
 //ADD		M		ADD		A,(HL)		86		A <- A + (HL)
 //ADI		byte		ADD		A,byte		C6byte		A <- A + byte
             case 0x87:  //ADD A, A
-                halfCarry = A < 0x10 && A * 2 >= 0x10;  //if A less than 4 bits and A + A more than 3 bits
-                carry = A * 2 > 0xFF;   //if A + A more than a byte
-                A += A;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = add(A, A);
                 break;
             case 0x80:  //ADD A, B
-                halfCarry = A < 0x10 && A + B >= 0x10;
-                carry = A + B > 0xFF;
-                A += B;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = add(A, B);
                 break;
             case 0x81:  //ADD A, C
-                halfCarry = A < 0x10 && A + C >= 0x10;
-                carry = A + C > 0xFF;
-                A += C;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
+                A = add(A, C);
                 subtract = false;
                 break;
             case 0x82:  //ADD A, D
-                halfCarry = A < 0x10 && A + D >= 0x10;
-                carry = A + D > 0xFF;
-                A += D;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
+                A = add(A, D);
                 subtract = false;
                 break;
             case 0x83:  //ADD A, E
-                halfCarry = A < 0x10 && A + E >= 0x10;
-                carry = A + E > 0xFF;
-                A += E;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
+                A = add(A, E);
                 subtract = false;
                 break;
             case 0x84:  //ADD A, H
-                halfCarry = A < 0x10 && A + H >= 0x10;
-                carry = A + H > 0xFF;
-                A += H;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
+                A = add(A, H);
                 subtract = false;
                 break;
             case 0x85:  //ADD A, L
-                halfCarry = A < 0x10 && A + L >= 0x10;
-                carry = A + L > 0xFF;
-                A += L;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
+                A = add(A, L);
                 subtract = false;
                 break;
             case 0x86:  //ADD A, (HL)
                 word = MMU.readAddress(makeWord(H, L));
-                halfCarry = A < 0x10 && A + word >= 0x10;
-                carry = A + word > 0xFF;
-                A += word;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
+                A = add(A, (short) word);
                 subtract = false;
                 break;
             case 0xC6:  //ADD A, byte
                 word = MMU.readAddress(PC);
                 PC++;
-                halfCarry = A < 0x10 && A + word >= 0x10;
-                carry = A + word > 0xFF;
-                A += word;
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = add(A, (short) word);
                 break;
 //Add Byte with Carry-In Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
@@ -553,80 +524,35 @@ public class GBCPU {
 //ADC		M		ADC		A,(HL)		8E		A <- A + (HL) + Carry
 //ACI		byte		ADC		A,byte		CEbyte		A <- A + byte + Carry
             case 0x8F:  //ADC A, A
-                halfCarry = A < 0x10 && A + A + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + A + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += A + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, A);
                 break;
             case 0x88:  //ADC A, B
-                halfCarry = A < 0x10 && A + B + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + B + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += B + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, B);
                 break;
             case 0x89:  //ADC A, C
-                halfCarry = A < 0x10 && A + C + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + C + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += C + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, C);
                 break;
             case 0x8A:  //ADC A, D
-                halfCarry = A < 0x10 && A + D + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + D + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += D + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, D);
                 break;
             case 0x8B:  //ADC A, E
-                halfCarry = A < 0x10 && A + E + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + E + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += E + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                subtract = false;
+                A = adc(A, E);
                 break;
             case 0x8C:  //ADC A, H
-                halfCarry = A < 0x10 && A + H + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + H + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += H + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, H);
                 break;
             case 0x8D:  //ADC A, L
-                halfCarry = A < 0x10 && A + L + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + L + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += L + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, L);
                 break;
             case 0x8E:  //ADC A, (HL)
-                word = MMU.readAddress(makeWord(H, L));
-                halfCarry = A < 0x10 && A + word + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + word + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += word + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                byte1 = MMU.readAddress(makeWord(H, L));
+                A = adc(A, byte1);
                 break;
             case 0xCE:  //ADC A, byte
-                word = MMU.readAddress(PC);
+                byte1 = MMU.readAddress(PC);
                 PC++;
-                halfCarry = A < 0x10 && A + word + (halfCarry == true ? 1 : 0) >= 0x10;
-                carry = A + word + (halfCarry == true ? 1 : 0) > 0xFF;
-                A += word + (halfCarry == true ? 1 : 0);
-                A %= 0x100;
-                zero = (A == 0 ? true : false);
-                subtract = false;
+                A = adc(A, byte1);
                 break;
-
 //Subtract Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //SUB		A		SUB		A		97		A <- A - A
@@ -639,70 +565,34 @@ public class GBCPU {
 //SUB		M		SUB		(HL)		96		A <- A - (HL)
 //SUI		byte		SUB		byte		D6byte		A <- A - byte
             case 0x97:  //SUB A
-                halfCarry = A > 0x0F ? true : false;
-                A = 0;
-                subtract = true;
-                zero = true;
-                carry = false;
+                sub(A);
                 break;
             case 0x90:  //SUB B
-                halfCarry = A > 0x0F && A - B <= 0x0F ? true : false;
-                carry = A < B ? true : false;
-                zero = A == B ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - B)) % 0x100);
+                sub(B);
                 break;
             case 0x91:  //SUB C
-                halfCarry = A > 0x0F && A - C <= 0x0F ? true : false;
-                carry = A < C ? true : false;
-                zero = A == C ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - C)) % 0x100);
+                sub(C);
                 break;
             case 0x92:  //SUB D
-                halfCarry = A > 0x0F && A - D <= 0x0F ? true : false;
-                carry = A < D ? true : false;
-                zero = A == D ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - D)) % 0x100);
+                sub(D);
                 break;
             case 0x93:  //SUB E
-                halfCarry = A > 0x0F && A - E <= 0x0F ? true : false;
-                carry = A < E ? true : false;
-                zero = A == E ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - E)) % 0x100);
+                sub(E);
                 break;
             case 0x94:  //SUB H
-                halfCarry = A > 0x0F && A - H <= 0x0F ? true : false;
-                carry = A < H ? true : false;
-                zero = A == H ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - H)) % 0x100);
+                sub(H);
                 break;
             case 0x95:  //SUB L
-                halfCarry = A > 0x0F && A - L <= 0x0F ? true : false;
-                carry = A < L ? true : false;
-                zero = A == L ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - L)) % 0x100);
+                sub(L);
                 break;
             case 0x96:  //SUB (HL)
-                word = MMU.readAddress(makeWord(H, L));
-                halfCarry = A > 0x0F && A - word <= 0x0F ? true : false;
-                carry = A < word ? true : false;
-                zero = A == word ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - word)) % 0x100);
+                byte1 = MMU.readAddress(makeWord(H, L));
+                sub(byte1);
                 break;
             case 0xD6:  //SUB byte
-                word = MMU.readAddress(PC);
+                byte1 = MMU.readAddress(PC);
                 PC++;
-                halfCarry = A > 0x0F && A - word <= 0x0F ? true : false;
-                carry = A < word ? true : false;
-                zero = A == word ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - word)) % 0x100);
+                sub(byte1);
                 break;
 //Subtract Byte With Borrow-In Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
@@ -716,11 +606,34 @@ public class GBCPU {
 //SBB		M		SBC		(HL)		9E		A <- A - (HL) - Carry
 //SBI		byte		SBC		byte		DEbyte		A <- A - byte - Carry
             case 0x9F:  //SBC A
-                halfCarry = A > 0x0F && A - B - (halfCarry == true ? 1 : 0) <= 0x0F ? true : false;
-                carry = A < B + (halfCarry == true ? 1 : 0) ? true : false;
-                zero = A == B + (halfCarry == true ? 1 : 0) ? true : false;
-                subtract = true;
-                A = (short) ((0x100 + (A - B - (halfCarry == true ? 1 : 0))) % 0x100);
+                sbc(A);
+                break;
+            case 0x98:  //SBC B
+                sbc(B);
+                break;
+            case 0x99:  //SBC C
+                sbc(C);
+                break;
+            case 0x9A:  //SBC D
+                sbc(D);
+                break;
+            case 0x9B:  //SBC E
+                sbc(E);
+                break;
+            case 0x9C:  //SBC H
+                sbc(H);
+                break;
+            case 0x9D:  //SBC L
+                sbc(L);
+                break;
+            case 0x9E:  //SBC (HL)
+                byte1 = MMU.readAddress(makeWord(H, L));
+                sbc(byte1);
+                break;
+            case 0xDE:  //SBC byte
+                byte1 = MMU.readAddress(PC);
+                PC++;
+                sbc(byte1);
                 break;
 //Double Byte Add Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
@@ -728,12 +641,44 @@ public class GBCPU {
 //DAD		D		ADD		HL,DE		19		HL <- HL + DE
 //DAD		H		ADD		HL,HL		29		HL <- HL + HL
 //DAD		SP		ADD		HL,SP		39		HL <- HL + SP
+            case 0x09:  //ADD HL, BC
+                word = wordAdd(makeWord(H, L), makeWord(B, C));
+                H = (short) (word >> 8);
+                L = (short) (word & 0x00FF);
+                break;
+            case 0x19:  //ADD HL, DE
+                word = wordAdd(makeWord(H, L), makeWord(D, E));
+                H = (short) (word >> 8);
+                L = (short) (word & 0x00FF);
+                break;
+            case 0x29:  //ADD HL, HL
+                word = wordAdd(makeWord(H, L), makeWord(H, L));
+                H = (short) (word >> 8);
+                L = (short) (word & 0x00FF);
+                break;
+            case 0x39:  //ADD HL, SP
+                word = wordAdd(makeWord(H, L), SP);
+                H = (short) (word >> 8);
+                L = (short) (word & 0x00FF);
+                break;
 //Control Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //DI		DI		F3		IFF <- 0
 //EI		EI		FB		IFF <- 1
 //NOP		NOP		00		No Operation
 //HLT		HLT		76		NOP;PC <- PC-1
+            case 0xF3:  //DI
+                IER = false;
+                break;
+            case 0xFB:  //EI
+                IER = true;
+                break;
+            case 0x00:  //NOP
+                break;
+            case 0x76:  //HLT
+                //PC--;
+                GBDebug.log("GBCPU.processInstruction - @case 0x76: looping not implemented yet");
+                break;
 //Increment Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //INR		A		INC		A		3C		A <- A + 1
@@ -744,6 +689,31 @@ public class GBCPU {
 //INR		H		INC		H		24		H <- H + 1
 //INR		L		INC		L		2C		L <- L + 1
 //INR		M		INC		(HL)		34		(HL) <- (HL) + 1
+            case 0x3C:  //INC A
+                A = inc(A);
+                break;
+            case 0x04:  //INC B
+                B = inc(B);
+                break;
+            case 0x0C:  //INC C
+                C = inc(C);
+                break;
+            case 0x14:  //INC D
+                D = inc(D);
+                break;
+            case 0x1C:  //INC E
+                E = inc(E);
+                break;
+            case 0x24:  //INC H
+                H = inc(H);
+                break;
+            case 0x2C:  //INC L
+                L = inc(L);
+                break;
+            case 0x34:  //INC (HL)
+                word = makeWord(H, L);
+                byte1 = inc(MMU.readAddress(word));
+                MMU.writeAddress(makeWord(H, L), byte1);
 //Decrement Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //DCR		A		DEC		A		3D		A <- A - 1
@@ -754,24 +724,104 @@ public class GBCPU {
 //DCR		H		DEC		H		25		H <- H - 1
 //DCR		L		DEC		L		2D		L <- L - 1
 //DCR		M		DEC		(HL)		35		(HL) <- (HL) - 1
+            case 0x3D:  //DEC A
+                A = dec(A);
+                break;
+            case 0x05:  //DEC B
+                B = dec(B);
+                break;
+            case 0x0D:  //DEC C
+                C = dec(C);
+                break;
+            case 0x15:  //DEC D
+                D = dec(D);
+                break;
+            case 0x1D:  //DEC E
+                E = dec(E);
+                break;
+            case 0x25:  //DEC H
+                H = dec(H);
+                break;
+            case 0x2D:  //DEC L
+                L = dec(L);
+                break;
+            case 0x35:  //DEC (HL)
+                word = makeWord(H, L);
+                byte1 = MMU.readAddress(word);
+                byte1 = inc(byte1);
+                MMU.writeAddress(word, byte1);
 //Increment Register Pair Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //INX		B		INC		BC		03		BC <- BC + 1
 //INX		D		INC		DE		13		DE <- DE + 1
 //INX		H		INC		HL		23		HL <- HL + 1
 //INX		SP		INC		SP		33		SP <- SP + 1
+            case 0x03:  //INC BC
+                word = wordInc(makeWord(B, C));
+                B = (short) (word >> 8);
+                C = (short) (word & 0x00FF);
+                break;
+            case 0x13:  //INC DE
+                word = wordInc(makeWord(D, E));
+                D = (short) (word >> 8);
+                E = (short) (word & 0x00FF);
+                break;
+            case 0x23:  //INC HL
+                word = wordInc(makeWord(H, L));
+                H = (short) (word >> 8);
+                L = (short) (word & 0x00FF);
+                break;
+            case 0x33:  //INC SP
+                SP = wordInc(SP);
+                break;
 //Decrement Register Pair Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //DCX		B		DEC		BC		0B		BC <- BC - 1
 //DCX		D		DEC		DE		1B		DE <- DE - 1
 //DCX		H		DEC		HL		2B		HL <- HL - 1
 //DCX		SP		DEC		SP		3B		SP <- SP - 1
+            case 0x0B:  //DEC BC
+                word = wordDec(makeWord(B, C));
+                B = (short) (word >> 8);
+                C = (short) (word & 0x00FF);
+                break;
+            case 0x1B:  //DEC DE
+                word = wordDec(makeWord(D, E));
+                D = (short) (word >> 8);
+                E = (short) (word & 0x00FF);
+                break;
+            case 0x2B:  //DEC HL
+                word = wordDec(makeWord(H, L));
+                H = (short) (word >> 8);
+                L = (short) (word & 0x00FF);
+                break;
+            case 0x3B:  //DEC SP
+                SP = wordDec(SP);
+                break;
 //Special Accumulator and Flag Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //DAA		DAA		27		---	
 //CMA		CPL		2F		A <- NOT A
 //STC		SCF		37		CF (Carry Flag) <- 1
 //CMC		CCF		3F		CF (Carry Flag) <- NOT CF
+            case 0x27:  //DAA
+                DAA = true;
+                break;
+            case 0x2F:  //CPL
+                A = (short) (A ^ 0xFF);
+                halfCarry = true;
+                subtract = true;
+                break;
+            case 0x37:  //SCF
+                carry = true;
+                halfCarry = false;
+                subtract = false;
+                break;
+            case 0x3F:  //CCF
+                carry = !carry;
+                halfCarry = !halfCarry;
+                subtract = false;
+                break;
 //Rotate Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //RLC		RLCA		07		---	
@@ -810,6 +860,19 @@ public class GBCPU {
 //---		RL		H		CB1C		---	
 //---		RL		L		CB1D		---	
 //---		RL		(HL)		CB1E		---	
+            case 0x07:  //RLCA
+                bool = zero;
+                A = rlc(A);
+                zero = bool;
+                break;
+            case 0x0F:  //RRCA
+                bool = zero;
+                A = rrc(A);
+                zero = bool;
+                break;
+            case 0x17:  //RLA
+                
+                break;
 //Logical Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //ANA		A		AND		A		A7		A <- A AND A
@@ -1127,7 +1190,7 @@ public class GBCPU {
 //---		SRL		L		CB3D		---	
 //---		SRL		(HL)		CB3E		---	
             default:
-                errorCount++;
+                ++errorCount;
                 interrupt = new GBBadInstruction(String.format("0x%02X", instruction)
                         + " at address 0x" + String.format("%04X", PC - 1));
         }
@@ -1139,12 +1202,134 @@ public class GBCPU {
         return word;
     }
 
+    private int wordAdd(int lword, int rword) {
+        halfCarry = lword < 0x10FF && lword + rword >= 0x10FF;
+        carry = lword + rword > 0xFFFF;
+        lword += rword;
+        lword %= 0x10000;
+        subtract = false;
+
+        return lword;
+    }
+
+    private int wordInc(int registerValue) {
+        registerValue = ++registerValue % 0x10000;
+
+        return registerValue;
+    }
+
+    private int wordDec(int registerValue) {
+        registerValue = (--registerValue + 0x10000) % 0x10000;
+
+        return registerValue;
+    }
+
+    private short add(short lbyte, short rbyte) {
+        halfCarry = lbyte < 0x10 && lbyte + rbyte >= 0x10;
+        carry = lbyte + rbyte > 0xFF;
+        lbyte += rbyte;
+        lbyte %= 0x100;
+        zero = lbyte == 0;
+        subtract = false;
+
+        return lbyte;
+    }
+
+    private short adc(short lbyte, short rbyte) {
+        halfCarry = lbyte < 0x10 && lbyte + rbyte + (halfCarry == true ? 1 : 0) >= 0x10;
+        carry = lbyte + rbyte + (halfCarry == true ? 1 : 0) > 0xFF;
+        lbyte += rbyte + (halfCarry == true ? 1 : 0);
+        lbyte %= 0x100;
+        zero = lbyte == 0;
+        subtract = false;
+
+        return lbyte;
+    }
+
+    private void sub(short registerValue) {
+        halfCarry = A > 0x0F && A - registerValue <= 0x0F;
+        carry = A < registerValue;
+        zero = A == registerValue;
+        subtract = true;
+        A = (short) ((0x100 + (A - registerValue)) % 0x100);
+    }
+
     private void sbc(short registerValue) {
-        halfCarry = A > 0x0F && A - registerValue - (halfCarry == true ? 1 : 0) <= 0x0F ? true : false;
-        carry = A < registerValue + (halfCarry == true ? 1 : 0) ? true : false;
-        zero = A == registerValue + (halfCarry == true ? 1 : 0) ? true : false;
+        halfCarry = A > 0x0F && A - registerValue - (halfCarry == true ? 1 : 0) <= 0x0F;
+        carry = A < registerValue + (halfCarry == true ? 1 : 0);
+        zero = A == registerValue + (halfCarry == true ? 1 : 0);
         subtract = true;
         A = (short) ((0x100 + (A - registerValue - (halfCarry == true ? 1 : 0))) % 0x100);
+    }
+
+    private short inc(short registerValue) {
+        halfCarry = registerValue <= 0x0F && registerValue + 1 > 0x0F;
+        subtract = false;
+        zero = registerValue == 0xFF;
+        registerValue = (short) (++registerValue % 0x100);
+
+        return registerValue;
+    }
+
+    private short dec(short registerValue) {
+        halfCarry = registerValue > 0x0F && registerValue - 1 <= 0x0F;
+        subtract = true;
+        zero = registerValue == 0x01;
+        registerValue = (short) ((--registerValue + 0x100) % 0x100);
+
+        return registerValue;
+    }
+
+    private short rl(short registerValue) {
+        byte highBit = (byte) (registerValue >> 7);
+        registerValue <<= 1;
+        registerValue &= 0xFF;
+        registerValue += carry == true ? 1 : 0;
+        carry = highBit == 1;
+        zero = registerValue == 0;
+        halfCarry = false;
+        subtract = false;
+
+        return registerValue;
+    }
+    
+    private short rlc(short registerValue) {
+        byte highBit = (byte) (registerValue >> 7);
+        registerValue <<= 1;
+        registerValue &= 0xFF;
+        carry = highBit == 1;
+        registerValue += carry == true ? 1 : 0;
+        zero = registerValue == 0;
+        halfCarry = false;
+        subtract = false;
+
+        return registerValue;
+    }
+    
+    private short rr(short registerValue) {
+        byte lowBit = (byte) (registerValue & 0x01);
+        registerValue >>= 1;
+        registerValue &= 0x7F;
+        registerValue |= (carry == true ? 1 : 0) << 7;
+        carry = lowBit == 1;
+        zero = registerValue == 0;
+        halfCarry = false;
+        subtract = false;
+
+        return registerValue;
+    }
+    
+    private short rrc(short registerValue) {
+        byte lowBit = (byte) (registerValue & 0x01);
+        registerValue >>= 1;
+        registerValue &= 0x7F;
+        registerValue |= lowBit << 7;
+        carry = lowBit == 1;
+        zero = registerValue == 0;
+        halfCarry = false;
+        subtract = false;
+
+        return registerValue;
     }
 
     private String coreDump() {
