@@ -60,21 +60,21 @@ public class GBMMU {
     }
 
     public short readAddress(int address) {
-        if (address < ROMBANK01_START) {
+        if (address < ROMBANK01_START) {        //0x0000 <-- address --> 0x4000 ROMBank00
             return ROMBank00[address];
-        } else if (address < VIDEORAM_START) {
+        } else if (address < VIDEORAM_START) {  //0x4000 <-- address --> 0x8000 ROMBank01
             return ROMBank01[address - ROMBANK01_START];
-        } else if (address < EXTERNALRAM_START) {
+        } else if (address < EXTERNALRAM_START) {   //0x8000 <-- address --> 0xA000 videoRAM
             return videoRAM[address - VIDEORAM_START];
-        } else if (address < WORKBANKRAM0_START) {
+        } else if (address < WORKBANKRAM0_START) {  //0xA000 <-- address --> 0xC000 externalRAM
             return externalRAM[address - EXTERNALRAM_START];
-        } else if (address < WORKBANKRAM1_START) {
+        } else if (address < WORKBANKRAM1_START) {  //0xC000 <-- address --> 0xD000 workRAMBank0
             return workRAMBank0[address - WORKBANKRAM0_START];
-        } else if (address < WORKBANKRAM0GHOST_START) {
+        } else if (address < WORKBANKRAM0GHOST_START) { //0xD000 <-- address --> 0xE000 workRAMBank1
             return workRAMBank1[address - WORKBANKRAM1_START];
-        } else if (address < SAT_START && address < 0xDDFF) {
+        } else if (address < SAT_START && address < 0xDDFF) {   //0xE000 <-- address --> 0xFE00 workRAMBank0 echo
             return workRAMBank0[address - WORKBANKRAM0GHOST_START];
-        } else if (address < SAT_START && address >= 0xDDFF) {
+        } else if (address < SAT_START && address >= 0xDDFF) {  //0xFE00 <-- address --> 0xFEA0 non-mirrored memory
             GBDebug.log("GBMMU.readAddress - Attempted to read non-mirrored memory at 0x" + Integer.toHexString(address).toUpperCase());
             return 0x00;
         } else if (address < NOTUSABLE_START) {

@@ -808,7 +808,7 @@ public class GBCPU {
                 DAA = true;
                 break;
             case 0x2F:  //CPL
-                A = (short) (A ^ 0xFF);
+                A = (short) (A ^ 0xFF); //negate A
                 halfCarry = true;
                 subtract = true;
                 break;
@@ -871,7 +871,14 @@ public class GBCPU {
                 zero = bool;
                 break;
             case 0x17:  //RLA
-                
+                bool = zero;
+                A = rl(A);
+                zero = bool;
+                break;
+            case 0x1F:  //RRA
+                bool = zero;
+                A = rr(A);
+                zero = bool;
                 break;
 //Logical Byte Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
@@ -883,9 +890,38 @@ public class GBCPU {
 //ANA		H		AND		H		A4		A <- A AND H
 //ANA		L		AND		L		A5		A <- A AND L
 //ANA		M		AND		(HL)		A6		A <- A AND (HL)
-//---		AND		(IX+index)		DDA6index		A <- A AND (IX+index)
-//---		AND		(IY+index)		FDA6index		A <- A AND (IY+index)
 //ANI		byte		AND		byte		E6byte		A <- A AND byte
+            case 0xA7:  //AND A
+                and(A);
+                break;
+            case 0xA0:  //AND B
+                and(B);
+                break;
+            case 0xA1:  //AND C
+                and(C);
+                break;
+            case 0xA2:  //AND D
+                and(D);
+                break;
+            case 0xA3:  //AND E
+                and(E);
+                break;
+            case 0xA4:  //AND H
+                and(H);
+                break;
+            case 0xA5:  //AND L
+                and(L);
+                break;
+            case 0xA6:  //AND (HL)
+                word = makeWord(H, L);
+                byte1 = MMU.readAddress(word);
+                and(byte1);
+                break;
+            case 0xE6:  //AND byte
+                byte1 = MMU.readAddress(PC);
+                PC++;
+                and(byte1);
+                break;
 //XRA		A		XOR		A		AF		A <- A XOR A
 //XRA		B		XOR		B		A8		A <- A XOR B
 //XRA		C		XOR		C		A9		A <- A XOR C
@@ -894,7 +930,38 @@ public class GBCPU {
 //XRA		H		XOR		H		AC		A <- A XOR H
 //XRA		L		XOR		L		AD		A <- A XOR L
 //XRA		M		XOR		(HL)		AE		A <- A XOR (HL)
-//XRI		byte		XOR		byte		EEbyte		A <- A XOR byte
+//XRI		byte		XOR		byte		EEbyte		A <- A XOR byte\\
+            case 0xAF:  //XOR A
+                xor(A);
+                break;
+            case 0xA8:  //XOR B
+                xor(B);
+                break;
+            case 0xA9:  //XOR C
+                xor(C);
+                break;
+            case 0xAA:  //XOR D
+                xor(D);
+                break;
+            case 0xAB:  //XOR E
+                xor(E);
+                break;
+            case 0xAC:  //XOR H
+                xor(H);
+                break;
+            case 0xAD:  //XOR L
+                xor(L);
+                break;
+            case 0xAE:  //XOR (HL)
+                word = makeWord(H, L);
+                byte1 = MMU.readAddress(word);
+                xor(byte1);
+                break;
+            case 0xEE:  //XOR byte
+                byte1 = MMU.readAddress(PC);
+                PC++;
+                xor(byte1);
+                break;
 //ORA		A		OR		A		B7		A <- A OR A
 //ORA		B		OR		B		B0		A <- A OR B
 //ORA		C		OR		C		B1		A <- A OR C
@@ -904,6 +971,37 @@ public class GBCPU {
 //ORA		L		OR		L		B5		A <- A OR L
 //ORA		M		OR		(HL)		B6		A <- A OR (HL)
 //ORI		byte		OR		byte		F6byte		A <- A OR byte
+            case 0xB7:  //OR A
+                or(A);
+                break;
+            case 0xB0:  //OR B
+                or(B);
+                break;
+            case 0xB1:  //OR C
+                or(C);
+                break;
+            case 0xB2:  //OR D
+                or(D);
+                break;
+            case 0xB3:  //OR E
+                or(E);
+                break;
+            case 0xB4:  //OR H
+                or(H);
+                break;
+            case 0xB5:  //OR L
+                or(L);
+                break;
+            case 0xB6:  //OR (HL)
+                word = makeWord(H, L);
+                byte1 = MMU.readAddress(word);
+                or(byte1);
+                break;
+            case 0xF6:  //OR byte
+                byte1 = MMU.readAddress(PC);
+                PC++;
+                or(byte1);
+                break;
 //CMP		A		CP		A		BF		A - A
 //CMP		B		CP		B		B8		A - B
 //CMP		C		CP		C		B9		A - C
@@ -913,6 +1011,37 @@ public class GBCPU {
 //CMP		L		CP		L		BD		A - L
 //CMP		M		CP		(HL)		BE		A - (HL)
 //CPI		byte		CP		byte		FEbyte		A - byte
+            case 0xBF:  //CP A
+                cp(A);
+                break;
+            case 0xB8:  //CP B
+                cp(B);
+                break;
+            case 0xB9:  //CP C
+                cp(C);
+                break;
+            case 0xBA:  //CP D
+                cp(D);
+                break;
+            case 0xBB:  //CP E
+                cp(E);
+                break;
+            case 0xBC:  //CP H
+                cp(H);
+                break;
+            case 0xBD:  //CP L
+                cp(L);
+                break;
+            case 0xBE:  //CP (HL)
+                word = makeWord(H, L);
+                byte1 = MMU.readAddress(word);
+                cp(byte1);
+                break;
+            case 0xFE:  //CP byte
+                byte1 = MMU.readAddress(PC);
+                PC++;
+                cp(byte1);
+                break;
 //Branch Control/Program Counter Load Instructions
 //8080 Mnemonic 	Z80 Mnemonic 	Machine Code 	Operation
 //JMP		word		JP		word		C3address		PC <- word
@@ -924,14 +1053,63 @@ public class GBCPU {
 //JPE		word		JP		PE,word		EAaddress		If PE, PC <- word
 //JP		word		JP		P,word		F2address		If P, PC <- word
 //JM		word		JP		M,word		FAaddress		If M, PC <- word
+            case 0xC3:  //JP word
+                jp();
+                break;
+            case 0xC2:  //JP NZ, word
+                if (!zero) {
+                    jp();
+                }
+                break;
+            case 0xCA:  //JP Z, word
+                if (zero) {
+                    jp();
+                }
+                break;
+            case 0xD2:  //JP NC, word
+                if (!carry) {
+                    jp();
+                }
+                break;
+            case 0xDA:  //JP C, word
+                if (carry) {
+                    jp();
+                }
+                break;
 //PCHL		JP		(HL)		E9		PC <- HL
-//---		JP		(IX)		DDE9		PC <- IX
-//---		JP		(IY)		FDE9		PC <- IY
 //---		JR		index		18index		PC <- PC + index
 //---		JR		NZ,index		20index		If NZ, PC <- PC + index
 //---		JR		Z,index		28index		If Z, PC <- PC + index
 //---		JR		NC,index		30index		If NC, PC <- PC + index
 //---		JR		C,index		38index		If C, PC <- PC + index
+            case 0xE9:  //JP (HL)
+                word = makeWord(H, L);
+                byte1 = MMU.readAddress(word);
+                PC = byte1;
+                break;
+            case 0x18:  //JR index
+                jr();
+                break;
+            case 0x20:  //JR NZ, index
+                if (!zero) {
+                    jr();
+                }
+                break;
+            case 0x28:  //JR Z, index
+                if (zero) {
+                    jr();
+                }
+                break;
+            case 0x30:  //JR NC, index
+                if (!carry) {
+                    jr();
+                }
+                break;
+            case 0x38:  //JR C, index
+                if (carry) {
+                    jr();
+                }
+                break;
 //---		DJNZ		index		10index		B <- B - 1; while B > 0, PC <- PC + index
 //CALL		word		CALL		word		CDaddress	(SP-1) <- PCh;(SP-2) <- PCl; SP <- SP - 2;PC <- word
 //CNZ		word		CALL		NZ,word		C4address		If NZ, CALL word
@@ -940,6 +1118,7 @@ public class GBCPU {
 //CC		word		CALL		C,word		DCaddress		If C, CALL word
 //CPO		word		CALL		PO,word		E4address		If PO, CALL word
 //CP		word		CALL		P,word		F4address		If P, CALL word
+                
 //RET		RET		C9		PCl <- (SP);PCh <- (SP+1); SP <- (SP+2)
 //RNZ		RET		NZ		C0		If NZ, RET
 //RZ		RET		Z		C8		If Z, RET
@@ -1225,10 +1404,10 @@ public class GBCPU {
     }
 
     private short add(short lbyte, short rbyte) {
-        halfCarry = lbyte < 0x10 && lbyte + rbyte >= 0x10;
-        carry = lbyte + rbyte > 0xFF;
+        halfCarry = lbyte < 0x10 && lbyte + rbyte >= 0x10;  //lbyte uses at most 4 bits and lbyte + rbyte use at least 5 bits
+        carry = lbyte + rbyte > 0xFF;   //lbyte + rbyte more than 8 bits
         lbyte += rbyte;
-        lbyte %= 0x100;
+        lbyte %= 0x100; //overflows lbyte if necessary
         zero = lbyte == 0;
         subtract = false;
 
@@ -1281,18 +1460,18 @@ public class GBCPU {
     }
 
     private short rl(short registerValue) {
-        byte highBit = (byte) (registerValue >> 7);
-        registerValue <<= 1;
-        registerValue &= 0xFF;
-        registerValue += carry == true ? 1 : 0;
-        carry = highBit == 1;
+        byte highBit = (byte) (registerValue >> 7); //right shift to get just the high bit
+        registerValue <<= 1;    //left shift register
+        registerValue &= 0xFF;  //mask out any bits that would cause register to be > 0xFF
+        registerValue += carry == true ? 1 : 0; //put carry into low bit
+        carry = highBit == 1;   //put high bit into carry
         zero = registerValue == 0;
         halfCarry = false;
         subtract = false;
 
         return registerValue;
     }
-    
+
     private short rlc(short registerValue) {
         byte highBit = (byte) (registerValue >> 7);
         registerValue <<= 1;
@@ -1305,20 +1484,20 @@ public class GBCPU {
 
         return registerValue;
     }
-    
+
     private short rr(short registerValue) {
-        byte lowBit = (byte) (registerValue & 0x01);
-        registerValue >>= 1;
-        registerValue &= 0x7F;
-        registerValue |= (carry == true ? 1 : 0) << 7;
-        carry = lowBit == 1;
+        byte lowBit = (byte) (registerValue & 0x01);    //mask top 7 bits to get low bit
+        registerValue >>= 1;    //right shift register
+        registerValue &= 0x7F;  //mask high bit just in case
+        registerValue |= (carry == true ? 1 : 0) << 7;  //put carry into high bit
+        carry = lowBit == 1;    //put low bit into carry
         zero = registerValue == 0;
         halfCarry = false;
         subtract = false;
 
         return registerValue;
     }
-    
+
     private short rrc(short registerValue) {
         byte lowBit = (byte) (registerValue & 0x01);
         registerValue >>= 1;
@@ -1330,6 +1509,49 @@ public class GBCPU {
         subtract = false;
 
         return registerValue;
+    }
+
+    private void and(short registerValue) {
+        carry = false;
+        subtract = false;
+        A &= registerValue;
+        zero = A == 0;
+    }
+
+    private void xor(short registerValue) {
+        carry = false;
+        subtract = false;
+        A ^= registerValue;
+        zero = A == 0;
+    }
+
+    private void or(short registerValue) {
+        carry = false;
+        subtract = false;
+        A |= registerValue;
+        zero = A == 0;
+    }
+
+    private void cp(short registerValue) {
+        short temp = A;
+        sub(registerValue);
+        A = temp;
+    }
+
+    private void jp() {
+        short byte1 = MMU.readAddress(PC);
+        PC++;
+        short byte2 = MMU.readAddress(PC);
+        PC++;
+        int word = makeWord(byte1, byte2);
+        PC = word;
+    }
+
+    private void jr() {
+        byte byte1 = (byte) MMU.readAddress(PC);
+        PC++;
+        PC += byte1;
+        GBDebug.log("GBCPU.jr - bug: may not be able to jump backwards");
     }
 
     private String coreDump() {
